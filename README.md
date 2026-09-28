@@ -15,9 +15,8 @@ A personal Hyprland setup built on **Catppuccin** — clean, fast, and customiza
 | Launcher | Rofi (wayland) |
 | Terminal | Kitty |
 | Notifications | SwayNC |
-| Wallpaper | swww |
+| Wallpaper | awww |
 | Lock Screen | Hyprlock + Hypridle |
-| Shell Prompt | Starship |
 | File Manager | Nautilus |
 | Clipboard | cliphist |
 
@@ -128,10 +127,9 @@ cp ~/.config/hypr/themes/catppuccin-mocha.conf  ~/.config/hypr/theme.conf
 ```
 hyprland hyprlock hypridle hyprsunset hyprpicker
 xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
-xorg-xwayland wayland-protocols qt5-wayland qt6-wayland
-grim slurp grimblast-git swww swaync
-wl-clipboard cliphist imagemagick
-polkit-gnome sddm dbus udiskie
+xwayland wayland-protocols grim slurp awww swaync
+wl-clipboard cliphist imagemagick polkit-gnome dbus
+udiskie
 ```
 
 ### Audio
@@ -153,15 +151,14 @@ brightnessctl upower jq curl fzf libnotify
 
 ### Applications
 ```
-kitty neovim starship nautilus firefox
-btop fastfetch cava lazygit mpv obs-studio
+kitty neovim nautilus firefox btop
 ```
 
 ### Fonts & Icons
 ```
-ttf-jetbrains-mono-nerd ttf-commit-mono-nerd
-noto-fonts noto-fonts-emoji otf-font-awesome
-papirus-icon-theme bibata-cursor-theme
+font-jetbrains-mono-nerd font-commit-mono-nerd
+font-noto font-noto-emoji otf-font-awesome
+papirus-icon-theme simp1e-cursors-catppuccin-mocha
 ```
 
 ---
@@ -187,7 +184,7 @@ papirus-icon-theme bibata-cursor-theme
 | Shortcut | Action |
 |----------|--------|
 | `Super + T` | Terminal (Kitty) |
-| `Super + C` | Code editor |
+| `Super + C` | Code editor (Neovim) |
 | `Super + E` | File manager (Nautilus) |
 | `Super + F` | Browser (Firefox) |
 | `Super + Shift + F` | Browser private window |
@@ -294,17 +291,7 @@ papirus-icon-theme bibata-cursor-theme
 │
 ├── swaync/
 ├── kitty/
-├── btop/
-├── cava/
-├── fastfetch/
-└── starship.toml
-
-~/
-├── Wallpapers/
-│   ├── Pictures/               # desktop wallpapers
-│   └── Users/                  # avatar images
-└── Pictures/
-    └── Screenshots/
+└── btop/
 ```
 
 ---
@@ -321,10 +308,8 @@ papirus-icon-theme bibata-cursor-theme
 
 ## 📝 Notes
 
-- Default wallpaper: `MistyTrees.jpg` — Default avatar: `avatar.png`
+- Default wallpaper: `MistyTrees.jpg`
 - Changing wallpaper from the menu also updates the lock screen automatically
-- Screenshots are saved to `~/Pictures/Screenshots/`
-- A config backup is saved to `~/.config_backup_*` on every install
 
 ---
 

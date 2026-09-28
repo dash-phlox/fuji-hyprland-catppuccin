@@ -3,7 +3,7 @@
 # Package Removal - Arrow key selection TUI
 #
 
-LOG="/tmp/pkg-remove-tui.log"
+LOG="/tmp/apk-remove-tui.log"
 
 RESET='\033[0m'
 BOLD='\033[1m'
@@ -12,8 +12,7 @@ FG_SEL='\033[38;5;15m'
 
 ITEMS=(
   "  Remove package"
-  "  Remove with dependencies"
-  "  Remove orphans"
+  "  Remove multiple"
   "  Quit"
 )
 SELECTED=0
@@ -21,7 +20,7 @@ COUNT=${#ITEMS[@]}
 
 fzf_args=(
   --multi
-  --preview 'pacman -Qi {1} 2>/dev/null'
+  --preview 'apk info {1} 2>/dev/null | head -20'
   --preview-label='alt-p: toggle preview | alt-j/k: scroll | tab: multi-select'
   --preview-label-pos='bottom'
   --preview-window 'down:65%:wrap'
@@ -62,7 +61,7 @@ read_key() {
 
 do_remove() {
   clear
-  pkg_names=$(pacman -Qq | fzf "${fzf_args[@]}")
+  pkg_names=$(apk info -q | fzf "${fzf_args[@]}")
   if [[ -n "$pkg_names" ]]; then
     echo ""
     echo "  Packages to remove:"
@@ -71,7 +70,7 @@ do_remove() {
     read -rp "  Confirm removal? [y/N]: " CONFIRM
     if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
       echo ""
-      echo "$pkg_names" | tr '\n' ' ' | xargs sudo pacman -Rns --noconfirm 2>&1 | tee "$LOG"
+      echo "$pkg_names" | tr '\n' ' ' | xargs doas apk del 2>&1 | tee "$LOG"
       echo ""
       echo "  ✓  Done! Press any key to continue..."
       read -n 1 -s
@@ -79,20 +78,20 @@ do_remove() {
   fi
 }
 
-do_remove_deps() {
+do_remove_multi() {
   clear
-  fzf_deps_args=("${fzf_args[@]}")
-  fzf_deps_args+=(--header 'Removes package + unneeded deps | Tab: multi-select | Enter: confirm')
-  pkg_names=$(pacman -Qq | fzf "${fzf_deps_args[@]}")
+  fzf_multi_args=("${fzf_args[@]}")
+  fzf_multi_args+=(--header 'Multi-select packages | Tab: select | Enter: confirm')
+  pkg_names=$(apk info -q | fzf "${fzf_multi_args[@]}")
   if [[ -n "$pkg_names" ]]; then
     echo ""
-    echo "  Packages to remove (+ unneeded deps):"
+    echo "  Packages to remove:"
     echo "$pkg_names" | sed 's/^/    /'
     echo ""
     read -rp "  Confirm removal? [y/N]: " CONFIRM
     if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
       echo ""
-      echo "$pkg_names" | tr '\n' ' ' | xargs sudo pacman -Rns --noconfirm 2>&1 | tee "$LOG"
+      echo "$pkg_names" | tr '\n' ' ' | xargs doas apk del 2>&1 | tee "$LOG"
       echo ""
       echo "  ✓  Done! Press any key to continue..."
       read -n 1 -s
@@ -100,37 +99,11 @@ do_remove_deps() {
   fi
 }
 
-do_orphans() {
-  clear
-  echo ""
-  ORPHANS=$(pacman -Qdtq 2>/dev/null)
-  if [[ -z "$ORPHANS" ]]; then
-    echo "  ✓  No orphan packages found!"
-  else
-    COUNT=$(echo "$ORPHANS" | wc -l)
-    echo "  Found $COUNT orphan packages:"
-    echo ""
-    echo "$ORPHANS" | sed 's/^/    /'
-    echo ""
-    read -rp "  Remove all orphans? [y/N]: " CONFIRM
-    if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
-      echo ""
-      echo "$ORPHANS" | tr '\n' ' ' | xargs sudo pacman -Rns --noconfirm 2>&1 | tee "$LOG"
-      echo ""
-      echo "  ✓  Done!"
-    fi
-  fi
-  echo ""
-  echo "  Press any key to continue..."
-  read -n 1 -s
-}
-
 run_selection() {
   case $SELECTED in
     0) do_remove ;;
-    1) do_remove_deps ;;
-    2) do_orphans ;;
-    3) clear; exit 0 ;;
+    1) do_remove_multi ;;
+    2) clear; exit 0 ;;
   esac
 }
 

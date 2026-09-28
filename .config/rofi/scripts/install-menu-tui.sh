@@ -11,8 +11,7 @@ BG_SEL='\033[48;5;33m'
 FG_SEL='\033[38;5;15m'
 
 ITEMS=(
-  "  Pacman"
-  "  AUR"
+  "  APK"
   "  Quit"
 )
 SELECTED=0
@@ -47,9 +46,8 @@ read_key() {
 
 run_selection() {
   case $SELECTED in
-    0) clear; bash "$SCRIPT_DIR/pacman-installer.sh" ;;
-    1) clear; bash "$SCRIPT_DIR/aur-installer.sh" ;;
-    2) clear; exit 0 ;;
+    0) clear; bash "$SCRIPT_DIR/apk-installer.sh" ;;
+    1) clear; exit 0 ;;
   esac
 }
 

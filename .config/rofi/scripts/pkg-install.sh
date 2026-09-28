@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
 ROFI_CONF="$HOME/.config/rofi"
-LOG="/tmp/rofi-install.log"
-CACHE="/tmp/rofi-pkg-cache.txt"
+LOG="/tmp/apk-install.log"
+CACHE="/tmp/apk-pkg-cache.txt"
+ASKPASS="$HOME/.config/rofi/scripts/rofi-askpass.sh"
 
 rofi_menu() {
     rofi -dmenu -p "$1" -config "$ROFI_CONF/launcher-menu.rasi"
@@ -12,24 +13,31 @@ notify() {
     notify-send "$1" "$2" --icon="${3:-dialog-information}"
 }
 
+if doas -n true 2>/dev/null; then
+    PRIV=(doas -n)
+elif [ -x "$ASKPASS" ] && command -v sudo >/dev/null 2>&1; then
+    PRIV=(env SUDO_ASKPASS="$ASKPASS" sudo -A)
+else
+    notify "󰌆  Auth Failed" \
+        "Neither passwordless doas nor sudo+askpass is available" \
+        "dialog-error"
+    exit 1
+fi
+
+priv() { "${PRIV[@]}" "$@"; }
+
 build_cache() {
     if [ ! -f "$CACHE" ] || [ $(( $(date +%s) - $(stat -c %Y "$CACHE" 2>/dev/null || echo 0) )) -gt 600 ]; then
-        paru -Sl 2>/dev/null | awk '{print $2}' > "$CACHE" &
+        apk search -q 2>/dev/null > "$CACHE" &
     fi
 }
 
 pkg_info() {
-    paru -Si "$1" 2>/dev/null | awk -F': ' '
-        /^Name/        { name=$2 }
-        /^Version/     { ver=$2 }
-        /^Description/ { desc=$2 }
-        /^Installed Size/ { size=$2 }
-        END { printf "%-12s %s\n%-12s %s\n%-12s %s\n%-12s %s",
-              "Name:", name, "Version:", ver, "Size:", size, "Info:", desc }'
+    apk info "$1" 2>/dev/null | head -20
 }
 
 main_menu() {
-    printf '%s\n' "Search & Install" "Install from list" "Install multiple" "Reinstall package" "Install from AUR only" "View install log" \
+    printf '%s\n' "Search & Install" "Install from list" "Install multiple" "Reinstall package" "View install log" \
     | rofi_menu "󰄠  Install"
 }
 
@@ -37,7 +45,7 @@ do_search_install() {
     QUERY=$(rofi -dmenu -p "Search package" -config "$ROFI_CONF/launcher-menu.rasi" < /dev/null)
     [ -z "$QUERY" ] && return
     notify "󰄠  Searching" "$QUERY ..."
-    RESULTS=$(paru -Ss "$QUERY" 2>/dev/null | grep -E "^[a-z]" | awk '{print $1}' | sed 's|.*/||')
+    RESULTS=$(apk search "$QUERY" 2>/dev/null | awk '{print $1}')
     [ -z "$RESULTS" ] && notify "󰅙 Not found" "No packages found for: $QUERY" "dialog-warning" && return
     PKG=$(echo "$RESULTS" | rofi_menu "Select package")
     [ -z "$PKG" ] && return
@@ -51,7 +59,7 @@ do_list_install() {
     build_cache
     if [ ! -f "$CACHE" ] || [ ! -s "$CACHE" ]; then
         notify "󰔟  Loading" "Building package list, try again in a moment..."
-        paru -Sl 2>/dev/null | awk '{print $2}' > "$CACHE"
+        apk search -q 2>/dev/null > "$CACHE"
     fi
     PKG=$(cat "$CACHE" | rofi_menu "󰄠  Choose package")
     [ -z "$PKG" ] && return
@@ -69,30 +77,19 @@ do_multi_install() {
     [[ "$CONFIRM" != Yes* ]] && return
     notify "󰄠  Installing" "$COUNT packages in background..."
     (
-        paru -S --noconfirm $PKGS >"$LOG" 2>&1
+        priv apk add $PKGS >"$LOG" 2>&1
         [ $? -eq 0 ] && notify "✓  Done" "$COUNT packages installed" "dialog-ok" \
                       || notify "✗  Failed" "$(tail -3 $LOG)" "dialog-error"
     ) &
 }
 
 do_reinstall() {
-    PKG=$(paru -Qq | rofi_menu "󰑓  Reinstall")
+    PKG=$(apk info -q | rofi_menu "󰑓  Reinstall")
     [ -z "$PKG" ] && return
     notify "󰑓  Reinstalling" "$PKG ..."
-    ( paru -S --noconfirm "$PKG" >"$LOG" 2>&1
+    ( priv apk add "$PKG" >"$LOG" 2>&1
       [ $? -eq 0 ] && notify "✓  Reinstalled" "$PKG" "dialog-ok" \
                     || notify "✗  Failed" "$(tail -3 $LOG)" "dialog-error" ) &
-}
-
-do_aur_install() {
-    QUERY=$(rofi -dmenu -p "AUR search" -config "$ROFI_CONF/launcher-menu.rasi" < /dev/null)
-    [ -z "$QUERY" ] && return
-    notify "󰄠  Searching AUR" "$QUERY ..."
-    RESULTS=$(paru -Ssa "$QUERY" 2>/dev/null | grep "^aur/" | awk '{print $1}' | sed 's|aur/||')
-    [ -z "$RESULTS" ] && notify "󰅙 Not found" "No AUR packages for: $QUERY" "dialog-warning" && return
-    PKG=$(echo "$RESULTS" | rofi_menu "AUR packages")
-    [ -z "$PKG" ] && return
-    _install "$PKG"
 }
 
 do_view_log() {
@@ -102,7 +99,7 @@ do_view_log() {
 
 _install() {
     notify "󰄠  Installing" "$1 ..."
-    ( paru -S --noconfirm "$1" >"$LOG" 2>&1
+    ( priv apk add "$1" >"$LOG" 2>&1
       [ $? -eq 0 ] && notify "✓  Installed" "$1 installed successfully" "dialog-ok" \
                     || notify "✗  Failed" "$(tail -3 $LOG)" "dialog-error" ) &
 }
@@ -113,10 +110,9 @@ CHOICE=$(main_menu)
 [ -z "$CHOICE" ] && exit 0
 
 case "$CHOICE" in
-    "Search & Install")      do_search_install ;;
-    "Install from list")     do_list_install   ;;
-    "Install multiple")      do_multi_install  ;;
-    "Reinstall package")     do_reinstall      ;;
-    "Install from AUR only") do_aur_install    ;;
-    "View install log")      do_view_log       ;;
+    "Search & Install")  do_search_install ;;
+    "Install from list") do_list_install   ;;
+    "Install multiple")  do_multi_install  ;;
+    "Reinstall package") do_reinstall      ;;
+    "View install log")  do_view_log       ;;
 esac

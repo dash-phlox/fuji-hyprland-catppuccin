@@ -1,9 +1,9 @@
 #!/bin/bash
-# Fuzzy-finder for installing packages from pacman repos (including CachyOS repos)
+# Fuzzy-finder for installing packages from Alpine APK repos
 
 fzf_args=(
   --multi
-  --preview 'pacman -Si {1} 2>/dev/null'
+  --preview 'apk info {1} 2>/dev/null'
   --preview-label='alt-p: toggle preview, alt-j/k: scroll, tab: multi-select'
   --preview-label-pos='bottom'
   --preview-window 'down:65%:wrap'
@@ -15,14 +15,14 @@ fzf_args=(
   --prompt 'Package: '
 )
 
-pkg_names=$(pacman -Slq | fzf "${fzf_args[@]}")
+pkg_names=$(apk search -q | fzf "${fzf_args[@]}")
 
 if [[ -n "$pkg_names" ]]; then
-  echo "$pkg_names" | tr '\n' ' ' | xargs sudo pacman -S --noconfirm
+  echo "$pkg_names" | tr '\n' ' ' | xargs doas apk add
 
-  # Update locate database in the background
-  if command -v updatedb &>/dev/null; then
-    sudo updatedb &
+  # Update package index in the background
+  if command -v apk &>/dev/null; then
+    doas apk update &
   fi
 
   echo

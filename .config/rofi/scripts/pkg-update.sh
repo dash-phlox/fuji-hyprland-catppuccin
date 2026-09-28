@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 ROFI_CONF="$HOME/.config/rofi"
-LOG="/tmp/rofi-update.log"
+LOG="/tmp/apk-update.log"
 ASKPASS="$HOME/.config/rofi/scripts/rofi-askpass.sh"
 
 rofi_menu() {
@@ -12,64 +12,56 @@ notify() {
     notify-send "$1" "$2" --icon="${3:-dialog-information}"
 }
 
-auth_sudo() {
-    if ! sudo -n true 2>/dev/null; then
-        SUDO_ASKPASS="$ASKPASS" sudo -A true 2>/dev/null
-        if [ $? -ne 0 ]; then
-            notify "󰌆  Auth Failed" "Wrong password or cancelled" "dialog-error"
-            return 1
-        fi
-    fi
-    return 0
+if doas -n true 2>/dev/null; then
+    PRIV=(doas -n)
+elif [ -x "$ASKPASS" ] && command -v sudo >/dev/null 2>&1; then
+    PRIV=(env SUDO_ASKPASS="$ASKPASS" sudo -A)
+else
+    notify "󰌆  Auth Failed" \
+        "Neither passwordless doas nor sudo+askpass is available" \
+        "dialog-error"
+    exit 1
+fi
+
+priv() { "${PRIV[@]}" "$@"; }
+
+refresh_index() {
+    priv apk update >/dev/null 2>&1
 }
 
-sudo_rofi() {
-    SUDO_ASKPASS="$ASKPASS" sudo -A "$@"
+list_updates_raw() {
+    apk upgrade -s 2>/dev/null
 }
 
-# كشف AUR helper المتاح
-aur_helper() {
-    if command -v paru &>/dev/null; then echo "paru"
-    elif command -v yay &>/dev/null; then echo "yay"
-    else echo ""
-    fi
+list_update_names() {
+    apk upgrade -s 2>/dev/null | awk '{
+        for (i = 1; i <= NF; i++)
+            if ($i == "Upgrading") { print $(i+1); break }
+    }'
 }
 
 main_menu() {
-    AUR=$(aur_helper)
-    if [ -n "$AUR" ]; then
-        UPDATES=$("$AUR" -Qu 2>/dev/null | wc -l)
-    else
-        UPDATES=$(checkupdates 2>/dev/null | wc -l)
-    fi
-    printf '%s\n' "Update all ($UPDATES available)" "Update system only" "Update AUR only" "Select packages to update" "Check updates" "View update log" \
+    refresh_index
+    UPDATES=$(list_updates_raw | grep -c '.')
+    printf '%s\n' "Update all ($UPDATES available)" "Select packages to update" "Check updates" "View update log" \
     | rofi_menu "󰑓  Update"
 }
 
 do_update_all() {
-    AUR=$(aur_helper)
-    if [ -n "$AUR" ]; then
-        UPDATES=$("$AUR" -Qu 2>/dev/null)
-    else
-        UPDATES=$(checkupdates 2>/dev/null)
-    fi
+    refresh_index
+    UPDATES=$(list_updates_raw)
     COUNT=$(echo "$UPDATES" | grep -c "." 2>/dev/null || echo 0)
     if [ "$COUNT" -eq 0 ] || [ -z "$UPDATES" ]; then
         notify "✓  Up to date" "System is already up to date" "dialog-ok"
         return
     fi
-    PREVIEW=$(echo "$UPDATES" | head -8 | awk '{printf "%-25s %s → %s\n", $1, $2, $4}')
+    PREVIEW=$(echo "$UPDATES" | head -8)
     CONFIRM=$(printf '%s\n%s' "Yes, update all" "No, cancel" \
         | rofi -dmenu -p "󰑓  Update $COUNT packages?" -mesg "$PREVIEW" -config "$ROFI_CONF/launcher-menu.rasi")
     [ "$CONFIRM" != "Yes, update all" ] && return
-    auth_sudo || return
     notify "󰑓  Updating" "$COUNT packages in background..."
     (
-        if [ -n "$AUR" ]; then
-            SUDO_ASKPASS="$ASKPASS" "$AUR" -Syu --noconfirm > "$LOG" 2>&1
-        else
-            sudo_rofi pacman -Syu --noconfirm > "$LOG" 2>&1
-        fi
+        priv apk upgrade > "$LOG" 2>&1
         if [ $? -eq 0 ]; then
             notify "✓  Updated" "$COUNT packages updated" "dialog-ok"
         else
@@ -78,55 +70,9 @@ do_update_all() {
     ) &
 }
 
-do_update_system() {
-    UPDATES=$(checkupdates 2>/dev/null | wc -l)
-    CONFIRM=$(printf '%s\n%s' "Yes, update system" "No, cancel" \
-        | rofi_menu "󰑓  Update system ($UPDATES packages)")
-    [ "$CONFIRM" != "Yes, update system" ] && return
-    auth_sudo || return
-    notify "󰑓  Updating system" "Running pacman -Syu ..."
-    (
-        sudo_rofi pacman -Syu --noconfirm > "$LOG" 2>&1
-        if [ $? -eq 0 ]; then
-            notify "✓  System updated" "$UPDATES packages" "dialog-ok"
-        else
-            notify "✗  Failed" "$(tail -3 "$LOG")" "dialog-error"
-        fi
-    ) &
-}
-
-do_update_aur() {
-    AUR=$(aur_helper)
-    if [ -z "$AUR" ]; then
-        notify "󰅙  No AUR helper" "Install yay or paru first" "dialog-warning"
-        return
-    fi
-    AUR_UPDATES=$("$AUR" -Qu 2>/dev/null | grep "\[AUR\]")
-    [ -z "$AUR_UPDATES" ] && notify "✓  AUR up to date" "All AUR packages are current" "dialog-ok" && return
-    COUNT=$(echo "$AUR_UPDATES" | wc -l)
-    PREVIEW=$(echo "$AUR_UPDATES" | head -8 | awk '{printf "%-25s %s → %s\n", $1, $2, $4}')
-    CONFIRM=$(printf '%s\n%s' "Yes, update AUR" "No, cancel" \
-        | rofi -dmenu -p "󰑓  Update AUR ($COUNT packages)" -mesg "$PREVIEW" -config "$ROFI_CONF/launcher-menu.rasi")
-    [ "$CONFIRM" != "Yes, update AUR" ] && return
-    auth_sudo || return
-    notify "󰑓  Updating AUR" "$COUNT packages ..."
-    (
-        SUDO_ASKPASS="$ASKPASS" "$AUR" -Sua --noconfirm > "$LOG" 2>&1
-        if [ $? -eq 0 ]; then
-            notify "✓  AUR updated" "$COUNT packages" "dialog-ok"
-        else
-            notify "✗  Failed" "$(tail -3 "$LOG")" "dialog-error"
-        fi
-    ) &
-}
-
 do_select_update() {
-    AUR=$(aur_helper)
-    if [ -n "$AUR" ]; then
-        ALL_UPDATES=$("$AUR" -Qu 2>/dev/null | awk '{print $1}')
-    else
-        ALL_UPDATES=$(checkupdates 2>/dev/null | awk '{print $1}')
-    fi
+    refresh_index
+    ALL_UPDATES=$(list_update_names)
     [ -z "$ALL_UPDATES" ] && notify "✓  Up to date" "No updates available" "dialog-ok" && return
 
     SELECTED=""
@@ -146,14 +92,9 @@ do_select_update() {
     done
     [ -z "$SELECTED" ] && return
     COUNT=$(echo "$SELECTED" | wc -w)
-    auth_sudo || return
     notify "󰑓  Updating" "$COUNT packages ..."
     (
-        if [ -n "$AUR" ]; then
-            SUDO_ASKPASS="$ASKPASS" "$AUR" -S --noconfirm $SELECTED > "$LOG" 2>&1
-        else
-            sudo_rofi pacman -S --noconfirm $SELECTED > "$LOG" 2>&1
-        fi
+        priv apk add -u $SELECTED > "$LOG" 2>&1
         if [ $? -eq 0 ]; then
             notify "✓  Updated" "$COUNT packages updated" "dialog-ok"
         else
@@ -164,22 +105,15 @@ do_select_update() {
 
 do_check_updates() {
     notify "󰑓  Checking" "Looking for updates..."
-    AUR=$(aur_helper)
-    if [ -n "$AUR" ]; then
-        UPDATES=$("$AUR" -Qu 2>/dev/null)
-    else
-        UPDATES=$(checkupdates 2>/dev/null)
-    fi
+    refresh_index
+    UPDATES=$(list_updates_raw)
     if [ -z "$UPDATES" ]; then
         notify "✓  Up to date" "No updates available" "dialog-ok"
         return
     fi
-    COUNT=$(echo "$UPDATES" | wc -l)
-    SYS_COUNT=$(echo "$UPDATES" | grep -v "\[AUR\]" | wc -l)
-    AUR_COUNT=$(echo "$UPDATES" | grep -c "\[AUR\]" || echo 0)
-    HEADER="Total: $COUNT  |  System: $SYS_COUNT  |  AUR: $AUR_COUNT"
-    echo "$UPDATES" | awk '{printf "%-22s  %s  →  %s\n", $1, $2, $4}' \
-        | rofi -dmenu -p "󰑓  Available updates" -no-custom -mesg "$HEADER" -config "$ROFI_CONF/launcher-menu.rasi"
+    COUNT=$(echo "$UPDATES" | grep -c '.')
+    HEADER="Total: $COUNT packages available"
+    echo "$UPDATES" | rofi -dmenu -p "󰑓  Available updates" -no-custom -mesg "$HEADER" -config "$ROFI_CONF/launcher-menu.rasi"
 }
 
 do_view_log() {
@@ -192,8 +126,6 @@ CHOICE=$(main_menu)
 
 case "$CHOICE" in
     Update\ all*)                do_update_all    ;;
-    "Update system only")        do_update_system ;;
-    "Update AUR only")           do_update_aur    ;;
     "Select packages to update") do_select_update ;;
     "Check updates")             do_check_updates ;;
     "View update log")           do_view_log      ;;

@@ -3,7 +3,7 @@
 # System Update - Arrow key selection TUI
 #
 
-LOG="/tmp/pkg-update-tui.log"
+LOG="/tmp/apk-update-tui.log"
 
 RESET='\033[0m'
 BOLD='\033[1m'
@@ -11,27 +11,27 @@ BG_SEL='\033[48;5;34m'
 FG_SEL='\033[38;5;15m'
 DIM='\033[2m'
 
-# Detect AUR helper
-aur_helper() {
-  if command -v paru &>/dev/null; then echo "paru"
-  elif command -v yay &>/dev/null; then echo "yay"
-  else echo ""
-  fi
+# List raw upgrade lines from apk
+list_updates_raw() {
+  doas apk update >/dev/null 2>&1
+  apk upgrade -s 2>/dev/null | grep 'Upgrading'
 }
 
-AUR=$(aur_helper)
+# Extract just the package names
+list_update_names() {
+  list_updates_raw | awk '{
+    for (i = 1; i <= NF; i++)
+      if ($i == "Upgrading") { print $(i+1); break }
+  }'
+}
 
-# Get update count once
-if [[ -n "$AUR" ]]; then
-  ALL_UPDATES=$("$AUR" -Qu 2>/dev/null)
-else
-  ALL_UPDATES=$(checkupdates 2>/dev/null)
-fi
-[[ -n "$ALL_UPDATES" ]] && TOTAL=$(echo "$ALL_UPDATES" | wc -l) || TOTAL=0
+# Initial update list
+ALL_UPDATES=$(list_update_names)
+TOTAL=$(echo "$ALL_UPDATES" | grep -c . 2>/dev/null || echo 0)
 
 fzf_args=(
   --multi
-  --preview 'pacman -Si {1} 2>/dev/null || pacman -Qi {1} 2>/dev/null'
+  --preview 'apk info {1} 2>/dev/null | head -20'
   --preview-label='alt-p: toggle preview | alt-j/k: scroll | tab: multi-select'
   --preview-label-pos='bottom'
   --preview-window 'down:65%:wrap'
@@ -46,10 +46,6 @@ fzf_args=(
 build_items() {
   ITEMS=(
     "  Update all   ($TOTAL available)"
-    "  System only  (pacman)"
-  )
-  [[ -n "$AUR" ]] && ITEMS+=("  AUR only     ($AUR)")
-  ITEMS+=(
     "  Select packages"
     "  Check available"
     "  Quit"
@@ -62,7 +58,6 @@ draw_menu() {
   echo ""
   echo -e "  ${BOLD}󰑓  System Update${RESET}"
   echo "  ──────────────────────────────"
-  [[ -n "$AUR" ]] && echo -e "  ${DIM}AUR helper: $AUR${RESET}" && echo ""
   for i in "${!ITEMS[@]}"; do
     if [[ $i -eq $SELECTED ]]; then
       echo -e "  ${BG_SEL}${FG_SEL}  ${ITEMS[$i]}  ${RESET}"
@@ -93,31 +88,7 @@ do_update_all() {
   read -rp "  Update all $TOTAL packages? [y/N]: " CONFIRM
   if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
     echo ""
-    [[ -n "$AUR" ]] && "$AUR" -Syu 2>&1 | tee "$LOG" || sudo pacman -Syu 2>&1 | tee "$LOG"
-    echo ""; echo "  ✓  Done! Press any key..."; read -n 1 -s
-  fi
-}
-
-do_update_system() {
-  clear
-  read -rp "  Update system packages? [y/N]: " CONFIRM
-  if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
-    echo ""
-    sudo pacman -Syu 2>&1 | tee "$LOG"
-    echo ""; echo "  ✓  Done! Press any key..."; read -n 1 -s
-  fi
-}
-
-do_update_aur() {
-  clear
-  if [[ -z "$AUR" ]]; then
-    echo ""; echo "  ✗  No AUR helper found!"
-    sleep 2; return
-  fi
-  read -rp "  Update AUR packages? [y/N]: " CONFIRM
-  if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
-    echo ""
-    "$AUR" -Sua 2>&1 | tee "$LOG"
+    doas apk upgrade 2>&1 | tee "$LOG"
     echo ""; echo "  ✓  Done! Press any key..."; read -n 1 -s
   fi
 }
@@ -128,17 +99,14 @@ do_select_update() {
     echo ""; echo "  ✓  No updates available!"
     sleep 2; return
   fi
-  pkg_names=$(echo "$ALL_UPDATES" | awk '{print $1}' | fzf "${fzf_args[@]}")
+
+  pkg_names=$(list_update_names | fzf "${fzf_args[@]}")
   if [[ -n "$pkg_names" ]]; then
     echo ""; echo "  Packages to update:"; echo "$pkg_names" | sed 's/^/    /'; echo ""
     read -rp "  Confirm update? [y/N]: " CONFIRM
     if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
       echo ""
-      if [[ -n "$AUR" ]]; then
-        echo "$pkg_names" | tr '\n' ' ' | xargs "$AUR" -S --noconfirm 2>&1 | tee "$LOG"
-      else
-        echo "$pkg_names" | tr '\n' ' ' | xargs sudo pacman -S --noconfirm 2>&1 | tee "$LOG"
-      fi
+      echo "$pkg_names" | tr '\n' ' ' | xargs doas apk add -u 2>&1 | tee "$LOG"
       echo ""; echo "  ✓  Done! Press any key..."; read -n 1 -s
     fi
   fi
@@ -150,35 +118,22 @@ do_check() {
     echo "  ✓  System is already up to date!"
   else
     echo "  Available updates ($TOTAL):"; echo ""
-    echo "$ALL_UPDATES" | awk '{printf "  %-28s  %s  →  %s\n", $1, $2, $4}'
+    list_updates_raw | sed 's/^/  /'
   fi
   echo ""; echo "  Press any key..."; read -n 1 -s
+
   # Refresh counts after check
-  if [[ -n "$AUR" ]]; then
-    ALL_UPDATES=$("$AUR" -Qu 2>/dev/null)
-  else
-    ALL_UPDATES=$(checkupdates 2>/dev/null)
-  fi
-  [[ -n "$ALL_UPDATES" ]] && TOTAL=$(echo "$ALL_UPDATES" | wc -l) || TOTAL=0
+  ALL_UPDATES=$(list_update_names)
+  TOTAL=$(echo "$ALL_UPDATES" | grep -c . 2>/dev/null || echo 0)
   build_items
 }
 
 run_selection() {
-  # Determine quit index dynamically
-  local quit_idx=$(( COUNT - 1 ))
-  local aur_offset=0
-  [[ -n "$AUR" ]] && aur_offset=1
-
-  if [[ $SELECTED -eq $quit_idx ]]; then
-    clear; exit 0
-  fi
-
   case $SELECTED in
     0) do_update_all ;;
-    1) do_update_system ;;
-    2) [[ -n "$AUR" ]] && do_update_aur || do_select_update ;;
-    3) [[ -n "$AUR" ]] && do_select_update || do_check ;;
-    4) [[ -n "$AUR" ]] && do_check ;;
+    1) do_select_update ;;
+    2) do_check ;;
+    3) clear; exit 0 ;;
   esac
 }
 

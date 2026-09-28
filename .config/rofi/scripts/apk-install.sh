@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# Omarchy Pacman Installer - داخل rofi بالكامل
+# Fuji APK Installer
 #
 
 ROFI_CONF="$HOME/.config/rofi"
-LOG="/tmp/pacman-install.log"
-CACHE="/tmp/pacman-cache.txt"
+LOG="/tmp/apk-install.log"
+CACHE="/tmp/apk-cache.txt"
 ASKPASS="$HOME/.config/rofi/scripts/rofi-askpass.sh"
 
 rofi_menu() {
@@ -16,44 +16,36 @@ notify() {
     notify-send "$1" "$2" --icon="${3:-dialog-information}"
 }
 
-# تشغيل sudo مع rofi كـ askpass
-sudo_rofi() {
-    SUDO_ASKPASS="$ASKPASS" sudo -A "$@"
+doas_rofi() {
+    SUDO_ASKPASS="$ASKPASS" doas -A "$@"
 }
 
-# التحقق من أن sudo صالح (تخزين مؤقت)، وإلا طلب الباسورد مرة واحدة
-auth_sudo() {
-    if ! sudo -n true 2>/dev/null; then
-        SUDO_ASKPASS="$ASKPASS" sudo -A true 2>/dev/null
+auth_doas() {
+    if ! doas -n true 2>/dev/null; then
+        SUDO_ASKPASS="$ASKPASS" doas -A true 2>/dev/null
         if [ $? -ne 0 ]; then
             notify "󰌆  Auth Failed" "Wrong password or cancelled" "dialog-error"
             return 1
         fi
     fi
-    return 0
+    return 1
 }
 
 pkg_info() {
-    pacman -Si "$1" 2>/dev/null | awk -F': ' '
-        /^Name/           { name=$2 }
-        /^Version/        { ver=$2 }
-        /^Description/    { desc=$2 }
-        /^Installed Size/ { size=$2 }
-        END { printf "Name:     %s\nVersion:  %s\nSize:     %s\nDesc:     %s",
-              name, ver, size, desc }'
+    apk info "$1" 2>/dev/null | head -20
 }
 
 build_cache() {
     if [ ! -f "$CACHE" ] || [ $(( $(date +%s) - $(stat -c %Y "$CACHE" 2>/dev/null || echo 0) )) -gt 600 ]; then
-        pacman -Slq 2>/dev/null > "$CACHE"
+        apk search -q 2>/dev/null > "$CACHE"
     fi
 }
 
 _install() {
-    auth_sudo || return
+    auth_doas || return
     notify "󰄠  Installing" "$1 ..."
     (
-        sudo_rofi pacman -S --noconfirm "$1" > "$LOG" 2>&1
+        doas_rofi apk add "$1" > "$LOG" 2>&1
         if [ $? -eq 0 ]; then
             notify "✓  Installed" "$1 installed successfully" "dialog-ok"
         else
@@ -67,7 +59,7 @@ do_search() {
     [ -z "$QUERY" ] && return
 
     notify "󰄠  Searching" "$QUERY ..."
-    RESULTS=$(pacman -Ss "$QUERY" 2>/dev/null | grep -E "^[a-z]" | awk '{print $1}' | sed 's|.*/||')
+    RESULTS=$(apk search "$QUERY" 2>/dev/null | awk '{print $1}')
 
     if [ -z "$RESULTS" ]; then
         notify "󰅙  Not Found" "No packages found for: $QUERY" "dialog-warning"
@@ -89,7 +81,7 @@ do_browse() {
 
     if [ ! -f "$CACHE" ] || [ ! -s "$CACHE" ]; then
         notify "󰔟  Loading" "Building package list, please wait..."
-        pacman -Slq 2>/dev/null > "$CACHE"
+        apk search -q 2>/dev/null > "$CACHE"
     fi
 
     PKG=$(cat "$CACHE" | rofi_menu "󰄠  Browse Packages")
@@ -107,7 +99,7 @@ do_multi() {
 
     if [ ! -f "$CACHE" ] || [ ! -s "$CACHE" ]; then
         notify "󰔟  Loading" "Building package list, please wait..."
-        pacman -Slq 2>/dev/null > "$CACHE"
+        apk search -q 2>/dev/null > "$CACHE"
     fi
 
     SELECTED=""
@@ -138,10 +130,10 @@ do_multi() {
                -config "$ROFI_CONF/launcher-menu.rasi")
 
     if [ "$CONFIRM" = "Install $COUNT packages" ]; then
-        auth_sudo || return
+        auth_doas || return
         notify "󰄠  Installing" "$COUNT packages in background..."
         (
-            sudo_rofi pacman -S --noconfirm $SELECTED > "$LOG" 2>&1
+            doas_rofi apk add $SELECTED > "$LOG" 2>&1
             if [ $? -eq 0 ]; then
                 notify "✓  Done" "$COUNT packages installed" "dialog-ok"
             else
@@ -160,7 +152,7 @@ do_view_log() {
 build_cache &
 
 CHOICE=$(printf '%s\n' "󰍉  Search & Install" "󰒿  Browse & Install" "󰏗  Multi Install" "󰋽  View Log" \
-    | rofi_menu "󰄠  Pacman Install")
+    | rofi_menu "󰄠  APK Install")
 
 [ -z "$CHOICE" ] && exit 0
 

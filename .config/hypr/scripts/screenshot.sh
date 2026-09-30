@@ -34,7 +34,7 @@ main() {
 
 	case $1 in
 		area)
-			grimblast --freeze copysave "$1" "$file"
+			grimblast copysave "$1" "$file"
 			;;
 		active | output | screen)
 			grimblast copysave "$1" "$file"

@@ -245,7 +245,6 @@
     "format-alt": "󰃭 {:%a %d %b %Y}",
     "interval": 60,
     "tooltip-format": "<tt>{calendar}</tt>",
-    "on-click": "waybar-toggle-clock",
     "calendar": {
       "mode": "month",
       "mode-mon-col": 3,
@@ -320,7 +319,7 @@
     "tooltip-format-disconnected": "Disconnected",
     "interval": 3,
     "spacing": 1,
-    "on-click": "pkill rofi || bash ~/.config/rofi/scripts/network-menu.sh"
+    "on-click": "pkill -x rofi || bash ~/.config/rofi/scripts/network-menu.sh"
   },
 
   "group/audio": {

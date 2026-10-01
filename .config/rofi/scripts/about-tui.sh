@@ -20,7 +20,7 @@ else
   MEM_TOTAL=$(free -h | awk '/^Mem:/{print $2}')
   DISK=$(df -h / | awk 'NR==2{print $3"/"$2}')
   SHELL_NAME=$(basename "$SHELL")
-  PKGS=$(pacman -Qq 2>/dev/null | wc -l)
+  PKGS=$(apk info 2>/dev/null | wc -l)
   WM="Hyprland"
 
   echo "  ┌─────────────────────────────────────────┐"
@@ -34,7 +34,7 @@ else
   printf "  │  %-12s  %-26s│\n" "CPU:"     "${CPU:0:26}"
   printf "  │  %-12s  %-26s│\n" "Memory:"  "$MEM_USED / $MEM_TOTAL"
   printf "  │  %-12s  %-26s│\n" "Disk:"    "$DISK"
-  printf "  │  %-12s  %-26s│\n" "Packages:" "$PKGS (pacman)"
+  printf "  │  %-12s  %-26s│\n" "Packages:" "$PKGS (APK)"
   echo "  └─────────────────────────────────────────┘"
 fi
 

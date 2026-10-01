@@ -4,10 +4,8 @@
 #
 
 ROFI_CONF="$HOME/.config/rofi"
-WALLPAPER_DIR="$HOME/Wallpapers/Pictures"
-WALLPAPER_STATE="$HOME/.config/swww/current_wallpaper"
-AVATAR_DIR="$HOME/Wallpapers/Users"
-USER_FACE="$HOME/.local/share/user.jpeg"
+WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
+WALLPAPER_STATE="$HOME/.config/awww/current_wallpaper"
 THUMB_DIR="/tmp/rofi-wallpaper-thumbs"
 TITLE_STR='textbox-custom { content: "󰸉 Wallpapers"; }'
 
@@ -38,18 +36,18 @@ generate_thumb() {
     echo "$THUMB"
 }
 
-# تطبيق على الشاشة (سطح المكتب)
+# apply to the desktop
 apply_desktop() {
     local IMG="$1"
     local MONITOR="${2:-}"
     [ ! -f "$IMG" ] && notify "✗ Error" "File not found: $IMG" "dialog-error" && return 1
 
     if [ -n "$MONITOR" ]; then
-        swww img "$IMG" --outputs "$MONITOR" \
+        awww img "$IMG" --outputs "$MONITOR" \
             --transition-type fade --transition-duration 0.8 --transition-fps 60 2>/dev/null
     else
         while IFS= read -r MON; do
-            swww img "$IMG" --outputs "$MON" \
+            awww img "$IMG" --outputs "$MON" \
                 --transition-type fade --transition-duration 0.8 --transition-fps 60 2>/dev/null
         done < <(get_monitors)
     fi
@@ -58,22 +56,12 @@ apply_desktop() {
     cp "$IMG" "$LOCK_WALL" 2>/dev/null
 }
 
-# تطبيق على شاشة القفل فقط
+# apply to the lock screen ONLY
 apply_lockscreen() {
     local IMG="$1"
     [ ! -f "$IMG" ] && notify "✗ Error" "File not found: $IMG" "dialog-error" && return 1
     cp "$IMG" "$LOCK_WALL"
     notify "󰷛  Lock Screen" "$(basename "$IMG")"
-}
-
-# تطبيق على صورة الحساب (user avatar)
-apply_avatar() {
-    local IMG="$1"
-    [ ! -f "$IMG" ] && notify "✗ Error" "File not found: $IMG" "dialog-error" && return 1
-    mkdir -p "$(dirname "$USER_FACE")"
-    convert "$IMG" -thumbnail 300x300^ -gravity center -extent 300x300 "$USER_FACE" 2>/dev/null \
-        || cp "$IMG" "$USER_FACE"
-    notify "󰀄  Avatar" "$(basename "$IMG")"
 }
 
 get_current_path() { cat "$WALLPAPER_STATE" 2>/dev/null || echo ""; }
@@ -88,7 +76,7 @@ list_wallpapers() {
     \) 2>/dev/null | sort
 }
 
-# ── بناء قائمة الصور مع thumbnails ──────────────
+# build the image list with thumbnails
 build_rofi_list() {
     local CURRENT_PATH="$1"
     local ROFI_INPUT=""
@@ -124,14 +112,13 @@ pick_wallpaper() {
     echo "$WALLPAPER_DIR/$NAME"
 }
 
-# ── القائمة الرئيسية ─────────────────────────────
+# main menu
 show_main() {
     CURRENT=$(get_current)
     COUNT=$(list_wallpapers | wc -l)
     printf '%s\n' \
         "󰸉  Desktop Wallpaper" \
         "󰷛  Lock Screen Wallpaper" \
-        "󰀄  Account Avatar" \
         "󰑓  Random Wallpaper" \
         "󰹑  Set per Monitor" \
         "󰋩  Open Wallpaper Folder" \
@@ -150,35 +137,6 @@ do_desktop() {
 do_lockscreen() {
     IMG=$(pick_wallpaper "󰷛  Lock Screen" "$LOCK_WALL") || return
     apply_lockscreen "$IMG"
-}
-
-do_avatar() {
-    # تصفح من مجلد الصور الشخصية
-    if [ ! -d "$AVATAR_DIR" ]; then
-        notify "󰀄  Avatar" "Folder not found: $AVATAR_DIR" "dialog-warning"
-        return
-    fi
-
-    ROFI_INPUT=""
-    while IFS= read -r IMG; do
-        NAME=$(basename "$IMG")
-        THUMB=$(generate_thumb "$IMG")
-        ROFI_INPUT+="  ${NAME}\x00icon\x1f${THUMB}\n"
-    done < <(find "$AVATAR_DIR" -type f \( \
-        -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" \
-    \) 2>/dev/null | sort)
-
-    [ -z "$ROFI_INPUT" ] && notify "󰀄  Avatar" "No images found in $AVATAR_DIR" "dialog-warning" && return
-
-    CHOICE=$(printf "%b" "$ROFI_INPUT" | rofi -dmenu \
-        -p "󰀄  Avatar" \
-        -config "$ROFI_CONF/wallpaper-menu.rasi")
-
-    [ -z "$CHOICE" ] && return
-
-    NAME=$(echo "$CHOICE" | sed 's/^[● ]*//' | xargs)
-    IMG="$AVATAR_DIR/$NAME"
-    apply_avatar "$IMG"
 }
 
 do_random() {
@@ -218,8 +176,8 @@ do_per_monitor() {
 
 # ── Main ─────────────────────────────────────────
 
-if ! pgrep -x swww-daemon > /dev/null; then
-    swww-daemon &
+if ! pgrep -x awww-daemon > /dev/null; then
+    awww-daemon &
     sleep 0.5
 fi
 
@@ -236,7 +194,6 @@ CHOICE=$(show_main)
 case "$CHOICE" in
     "󰸉  Desktop Wallpaper")     do_desktop     ;;
     "󰷛  Lock Screen Wallpaper") do_lockscreen  ;;
-    "󰀄  Account Avatar")        do_avatar      ;;
     "󰑓  Random Wallpaper")      do_random      ;;
     "󰹑  Set per Monitor")       do_per_monitor ;;
     "󰋩  Open Wallpaper Folder")  xdg-open "$WALLPAPER_DIR" & ;;

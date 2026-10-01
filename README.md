@@ -109,11 +109,10 @@ If you are installing the configuration outside of Fuji Linux, clone the reposit
 
 ```sh
 git clone https://github.com/dash-phlox/fuji-hyprland-catppuccin config
+
 cp -r config/.config/* ~/.config
 cp -r config/.local/* ~/.local
-
-mkdir -p ~/Pictures/Wallpapers
-cp -r config/Wallpapers ~/Pictures/Wallpapers
+cp -r config/Pictures/Wallpapers ~/Pictures
 
 rm -rf config
 ```

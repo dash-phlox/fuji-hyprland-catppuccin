@@ -27,7 +27,7 @@ list_update_names() {
 
 # Initial update list
 ALL_UPDATES=$(list_update_names)
-TOTAL=$(echo "$ALL_UPDATES" | grep -c . 2>/dev/null || echo 0)
+TOTAL=$(echo "$ALL_UPDATES" | grep -c . 2>/dev/null || true)
 
 fzf_args=(
   --multi
@@ -124,7 +124,7 @@ do_check() {
 
   # Refresh counts after check
   ALL_UPDATES=$(list_update_names)
-  TOTAL=$(echo "$ALL_UPDATES" | grep -c . 2>/dev/null || echo 0)
+  TOTAL=$(echo "$ALL_UPDATES" | grep -c . 2>/dev/null || true)
   build_items
 }
 

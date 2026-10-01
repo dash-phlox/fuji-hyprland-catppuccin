@@ -6,18 +6,18 @@
 #
 
 usage() {
-	cat <<- EOF
-		USAGE: ${0##*/} [OPTION]
+	cat <<EOF
+USAGE: ${0##*/} [OPTION]
 
-		Launch a Rofi menu based on the option passed
+Launch a Rofi menu based on the option passed
 
-		OPTIONS:
-		  a    app launcher
-		  m    emoji picker
-		  v    clipboard
-		  w    window switcher
-		  x    calculator
-	EOF
+OPTIONS:
+  a    app launcher
+  m    emoji picker
+  v    clipboard
+  w    window switcher
+  x    calculator
+EOF
 }
 
 clipboard_menu() {
@@ -43,7 +43,7 @@ clipboard_menu() {
 	HAS_IMGS=${#IMG_LINES[@]}
 	HAS_TXTS=${#TXT_LINES[@]}
 
-	# نص فقط → القائمة الأصلية بدون تغيير
+	# text only -> original menu unchanged
 	if [ "$HAS_IMGS" -eq 0 ]; then
 		echo "$ENTRIES" | \
 			rofi -dmenu \
@@ -54,13 +54,13 @@ clipboard_menu() {
 		return
 	fi
 
-	# صور فقط → قائمة بأيقونات
+	# images only -> icon menu
 	if [ "$HAS_TXTS" -eq 0 ]; then
 		_clipboard_images "${IMG_LINES[@]}"
 		return
 	fi
 
-	# خليط: اختر النوع أولاً
+	# mixed: choose the type first
 	SECTION=$(printf '%s\n' \
 		"󰈚  Text  (${HAS_TXTS})" \
 		"󰸉  Images  (${HAS_IMGS})" \
@@ -117,46 +117,46 @@ _clipboard_images() {
 	done
 }
 
+rofi() {
+	pkill -x rofi || command rofi "$@"
+}
+
 main() {
 	case $1 in
 		a)
-			pkill rofi ||
-			      rofi -show drun       \
-			           -show-icons      \
-			           -disable-history \
-			           -config "$HOME/.config/rofi/app-launcher.rasi"
+			rofi -show drun       \
+			     -show-icons      \
+			     -disable-history \
+			     -config "$HOME/.config/rofi/app-launcher.rasi"
 			;;
 		m)
-			pkill rofi ||
-			      rofi -modi emoji             \
-			           -show emoji             \
-			           -emoji-format "{emoji}" \
-			           -kb-accept-alt ""       \
-			           -kb-custom-1 Ctrl+c     \
-			           -kb-secondary-copy ""   \
-			           -config "$HOME/.config/rofi/emoji-picker.rasi"
+			rofi -modi emoji             \
+			     -show emoji             \
+			     -emoji-format "{emoji}" \
+			     -kb-accept-alt ""       \
+			     -kb-custom-1 Ctrl+c     \
+			     -kb-secondary-copy ""   \
+			     -config "$HOME/.config/rofi/emoji-picker.rasi"
 			;;
 		v)
-			pkill rofi || clipboard_menu
+			pkill -x rofi || clipboard_menu
 			;;
 		w)
-			pkill rofi ||
-			      rofi -show window \
-			           -config "$HOME/.config/rofi/window-switcher.rasi"
+			rofi -show window \
+			     -config "$HOME/.config/rofi/window-switcher.rasi"
 			;;
 		x)
-			pkill rofi ||
-			      rofi -show calc          \
-			           -modi calc          \
-			           -hint-welcome ""    \
-			           -hint-result ""     \
-			           -kb-accept-entry "" \
-			           -lines 0            \
-			           -no-history         \
-			           -no-show-match      \
-			           -no-sort            \
-			           -terse              \
-			           -config "$HOME/.config/rofi/calculator.rasi"
+			rofi -show calc          \
+			     -modi calc          \
+			     -hint-welcome ""    \
+			     -hint-result ""     \
+			     -kb-accept-entry "" \
+			     -lines 0            \
+			     -no-history         \
+			     -no-show-match      \
+			     -no-sort            \
+			     -terse              \
+			     -config "$HOME/.config/rofi/calculator.rasi"
 			;;
 		*)
 			usage >&2

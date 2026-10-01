@@ -68,7 +68,7 @@
     },
     "modules": ["custom/pc", "cpu", "memory", "temperature"]
   },
-  
+
   "custom/pc": {
     "format": " ",
     "tooltips": false
@@ -260,7 +260,7 @@
     }
   },
 
-  
+
 
   "custom/privacydots": {
     "exec": "~/.config/waybar/scripts/privacy_dots.sh",
@@ -411,6 +411,6 @@
   "custom/launcher": {
     "format": "󰀻",
     "tooltip": false,
-    "on-click": "pkill rofi || bash ~/.config/rofi/scripts/launcher-menu.sh"
+    "on-click": "pkill -x rofi || bash ~/.config/rofi/scripts/launcher-menu.sh"
   }
 }

@@ -5,8 +5,8 @@ WALL_CACHE="$HOME/.cache/hyprlock_wall.png"
 # إذا ما في خلفية محفوظة، خذ لقطة من الشاشة
 if [ ! -f "$WALL_CACHE" ]; then
     grim "$WALL_CACHE" 2>/dev/null || {
-        SWWW_WALL=$(cat "$HOME/.config/swww/current_wallpaper" 2>/dev/null)
-        [ -f "$SWWW_WALL" ] && cp "$SWWW_WALL" "$WALL_CACHE"
+        AWWW_WALL=$(cat "$HOME/.config/awww/current_wallpaper" 2>/dev/null)
+        [ -f "$AWWW_WALL" ] && cp "$AWWW_WALL" "$WALL_CACHE"
     }
 fi
 

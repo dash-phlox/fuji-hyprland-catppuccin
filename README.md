@@ -1,10 +1,8 @@
-# Hyprland Dotfiles
+# Fuji - Hyprland Catppuccin
 
-![Screenshot](screenshots/1.png)
+![Screenshot](Pictures/Screenshots/1.png)
 
-A personal Hyprland setup built on **Catppuccin** — clean, fast, and customizable.
-
----
+A Hyprland configuration for Fuji Linux with a Catppuccin-based theme system and integrations tailored for Fuji Linux.
 
 ## 🖥️ Components
 
@@ -19,18 +17,24 @@ A personal Hyprland setup built on **Catppuccin** — clean, fast, and customiza
 | Lock Screen | Hyprlock + Hypridle |
 | File Manager | Nautilus |
 | Clipboard | cliphist |
-
----
+| Image Viewer | qView |
 
 ## ✨ Features
 
 ### 🎨 Theme System
 Change the theme with one click from **Menu → Style** — applies instantly to:
-- Waybar · SwayNC · Kitty · Rofi · btop · Window borders
+- btop
+- Hyprland
+- Kitty
+- Rofi
+- SwayNC
+- Waybar
 
-**Available themes:** `catppuccin-mocha` · `catppuccin-frappe` · `catppuccin-macchiato` · `catppuccin-latte`
-
----
+**Available themes:**
+- Catppuccin Mocha
+- Catppuccin Frappe
+- Catppuccin Macchiato
+- Catppuccin Latte
 
 ### 󰸉 Wallpaper Menu (`Super + I`)
 
@@ -38,15 +42,11 @@ Change the theme with one click from **Menu → Style** — applies instantly to
 |--------|----------|
 | 󰸉 Desktop Wallpaper | Change desktop wallpaper + lock screen together |
 | 󰷛 Lock Screen Wallpaper | Change lock screen wallpaper only |
-| 󰀄 Account Avatar | Change avatar on lock screen |
 | 󰑓 Random Wallpaper | Set a random wallpaper |
 | 󰹑 Set per Monitor | Set different wallpaper per monitor |
 | 󰋩 Open Wallpaper Folder | Open wallpapers folder |
 
-> Wallpapers are read from `~/Wallpapers/Pictures/` with thumbnail previews.
-> Avatar images are read from `~/Wallpapers/Users/`.
-
----
+> Wallpapers are read from `~/Pictures/Wallpapers` with thumbnail previews.
 
 ### 󰅍 Clipboard (`Super + V`)
 
@@ -54,16 +54,12 @@ Change the theme with one click from **Menu → Style** — applies instantly to
 - **Images** → Shown as thumbnails with preview
 - **Mixed** → Asks first: text or images?
 
----
-
 ### 󰷛 Lock Screen (`Super + Shift + Backspace`)
 
-- Background is your last chosen wallpaper (auto-saved with blur)
-- Time and date centered
-- Avatar and password field
-- Mouse cursor visible
-
----
+- Uses your last selected wallpaper as the background
+- Time and date displayed in the middle
+- Bullet-masked password prompt
+- Mouse cursor remains visible
 
 ### 󰀻 Rofi Main Menu
 
@@ -76,50 +72,53 @@ Change the theme with one click from **Menu → Style** — applies instantly to
 | 󰑓 Update | Update system |
 | ⏻ System | Lock · Logout · Suspend · Reboot · Shutdown |
 
----
-
 ## ⚙️ Installation
 
-### Automatic
+### Fuji Linux
 
-```bash
-git clone https://github.com/b2-3c/dotfiles
-cd dotfiles
-bash install.sh
+On Fuji Linux, this configuration can be installed directly through the desktop selection during system setup.
+
+Select:
+
+```
+hyprland-catppuccin
 ```
 
-Or directly:
+from the `Desktop Environment / Window Manager` selection.
 
-```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/b2-3c/dotfiles/main/install.sh)"
+Fuji Linux will automatically install the required packages, configuration files, themes, fonts, and supporting components needed for the Catppuccin-themed Hyprland desktop.
+
+### Alpine Linux
+
+The configuration can also be installed on Alpine Linux.
+
+However, some of its dependencies are not available in Alpine's standard repositories, including packages such as:
+```
+grimblast
+hyprland-guiutils
+qview
 ```
 
-> The installer handles everything: package installation, copying files, setting permissions, enabling services, and setting the default wallpaper and avatar.
+Alpine users should therefore **enable the [Fuji Linux repository](https://github.com/dash-phlox/fuji-repo) first** so that all required dependencies can be installed.
+
+Once the Fuji repository is enabled, follow the manual installation instructions below.
 
 ### Manual
 
-```bash
-git clone https://github.com/b2-3c/dotfiles
-cd dotfiles
+If you are installing the configuration outside of Fuji Linux, clone the repository and copy the configuration files manually:
 
-cp -r .config/* ~/.config/
+```sh
+git clone https://github.com/dash-phlox/fuji-hyprland-catppuccin config
+cp -r config/.config/* ~/.config
+cp -r config/.local/* ~/.local
 
-mkdir -p ~/Pictures/Screenshots ~/Wallpapers/Pictures ~/Wallpapers/Users
+mkdir -p ~/Pictures/Wallpapers
+cp -r config/Wallpapers ~/Pictures/Wallpapers
 
-find ~/.config/hypr/scripts    -type f              -exec chmod +x {} +
-find ~/.config/hypr/nowplaying -type f -name "*.sh" -exec chmod +x {} +
-find ~/.config/rofi/scripts    -type f -name "*.sh" -exec chmod +x {} +
-find ~/.config/waybar/scripts  -type f              -exec chmod +x {} +
-find ~/.config/swaync/scripts  -type f -name "*.sh" -exec chmod +x {} +
-
-cp ~/.config/waybar/themes/catppuccin-mocha.css ~/.config/waybar/theme.css
-cp ~/.config/rofi/themes/catppuccin-mocha.rasi  ~/.config/rofi/theme.rasi
-cp ~/.config/swaync/themes/catppuccin-mocha.css ~/.config/swaync/theme.css
-cp ~/.config/kitty/themes/catppuccin-mocha.conf ~/.config/kitty/theme.conf
-cp ~/.config/hypr/themes/catppuccin-mocha.conf  ~/.config/hypr/theme.conf
+rm -rf config
 ```
 
----
+> Manual installation does not automatically install the required dependencies. See the [Dependencies](#-dependencies) section above and make sure the required packages are installed before starting Hyprland.
 
 ## 📦 Dependencies
 
@@ -160,8 +159,6 @@ font-jetbrains-mono-nerd font-commit-mono-nerd
 font-noto font-noto-emoji otf-font-awesome
 papirus-icon-theme simp1e-cursors-catppuccin-mocha
 ```
-
----
 
 ## ⌨️ Keybindings
 
@@ -252,8 +249,6 @@ papirus-icon-theme simp1e-cursors-catppuccin-mocha
 | `Super + Alt + B` | Toggle Bluetooth |
 | `Super + Alt + N` | Toggle Wi-Fi |
 
----
-
 ## 📁 File Structure
 
 ```
@@ -294,8 +289,6 @@ papirus-icon-theme simp1e-cursors-catppuccin-mocha
 └── btop/
 ```
 
----
-
 ## ⚠️ Manual Configuration After Install
 
 | File | What to Edit |
@@ -304,15 +297,12 @@ papirus-icon-theme simp1e-cursors-catppuccin-mocha
 | `~/.config/hypr/custom/devices.conf` | Keyboard and mouse names |
 | `~/.config/waybar/scripts/weather.sh` | Set LAT and LON coordinates |
 
----
-
 ## 📝 Notes
 
 - Default wallpaper: `MistyTrees.jpg`
 - Changing wallpaper from the menu also updates the lock screen automatically
-
----
+- This repository is intended for Fuji Linux, the configuration has been adapted and maintained for Fuji Linux
 
 ## 🤝 Contributing
 
-Suggestions and fixes are welcome — open an Issue or PR.
+Suggestions, improvements, and fixes are welcome, feel free to open an Issue or submit a Pull Request.
